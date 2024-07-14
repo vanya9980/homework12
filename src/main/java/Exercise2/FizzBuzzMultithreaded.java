@@ -7,6 +7,7 @@ public class FizzBuzzMultithreaded {
     private final int n;
     private final AtomicInteger current;
     private final BlockingQueue<String> queue;
+    private final Object lock = new Object();
 
     public FizzBuzzMultithreaded(int n) {
         this.n = n;
@@ -14,114 +15,115 @@ public class FizzBuzzMultithreaded {
         this.queue = new LinkedBlockingQueue<>();
     }
 
-    public void fizz() throws InterruptedException {
-        while (true) {
-            synchronized (this) {
+    public void fizz() {
+        synchronized (lock) {
+            while (current.get() <= n) {
+                while (current.get() % 3 != 0 || current.get() % 5 == 0) {
+                    try {
+                        lock.wait();
+                    }
+                    catch (InterruptedException e){
+                        Thread.currentThread().interrupt();
+                    }
+                }
                 if (current.get() > n) {
                     break;
                 }
-                if (current.get() % 3 == 0 && current.get() % 5 != 0) {
-                    queue.put("fizz");
-                    current.incrementAndGet();
-                    print();
-                }
+                queue.add("fizz");
+                current.incrementAndGet();
+                lock.notifyAll();
             }
         }
     }
 
-    public void buzz() throws InterruptedException {
-        while (true) {
-            synchronized (this) {
+    public void buzz() {
+        synchronized (lock) {
+            while (current.get() <= n) {
+                while (current.get() % 5 != 0 || current.get() % 3 == 0) {
+                    try {
+                        lock.wait();
+                    }
+                    catch (InterruptedException e){
+                        Thread.currentThread().interrupt();
+                    }
+                }
                 if (current.get() > n) {
                     break;
                 }
-                if (current.get() % 5 == 0 && current.get() % 3 != 0) {
-                    queue.put("buzz");
-                    current.incrementAndGet();
-                    print();
-                }
+                queue.add("buzz");
+                current.incrementAndGet();
+                lock.notifyAll();
             }
         }
     }
 
-    public void fizzbuzz() throws InterruptedException {
-        while (true) {
-            synchronized (this) {
+    public void fizzbuzz() {
+        synchronized (lock) {
+            while (current.get() <= n) {
+                while (current.get() % 3 != 0 || current.get() % 5 != 0) {
+                    try {
+                        lock.wait();
+                    }
+                    catch (InterruptedException e){
+                        Thread.currentThread().interrupt();
+                    }
+                }
                 if (current.get() > n) {
                     break;
                 }
-                if (current.get() % 3 == 0 && current.get() % 5 == 0) {
-                    queue.put("fizzbuzz");
-                    current.incrementAndGet();
-                    print();
-                }
+                queue.add("fizzbuzz");
+                current.incrementAndGet();
+                lock.notifyAll();
             }
         }
     }
 
-    public void number() throws InterruptedException {
-        while (true) {
-            synchronized (this) {
-                if (current.get() > n) {
-                    break;
+    public void number() {
+        synchronized (lock) {
+            while (current.get() <= n) {
+                while ((current.get() % 3 == 0 || current.get() % 5 == 0) && queue.isEmpty()) {
+                    try {
+                        lock.wait();
+                    }
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
-                if (current.get() % 3 != 0 && current.get() % 5 != 0) {
-                    queue.put(String.valueOf(current));
+                if(current.get() > n && queue.isEmpty()) break;
+                String item = queue.poll();
+                if(item == null) {
+                    System.out.println(current.get() + ", ");
                     current.incrementAndGet();
-                    print();
+                } else {
+                    System.out.println(item + ", ");
                 }
+                lock.notifyAll();
             }
         }
     }
 
-    private void print() throws InterruptedException {
-        String value = queue.take();
-        System.out.print(value + (current.get() > n ? "" : ", "));
-    }
+    public static void main(String[] args) {
+        FizzBuzzMultithreaded fizzBuzz = new FizzBuzzMultithreaded(15);
 
-    public static void main(String[] args) throws InterruptedException {
-        FizzBuzzMultithreaded fizzBuzz = new FizzBuzzMultithreaded(200000);
-
-        Thread threadA = new Thread(() -> {
-            try {
-                fizzBuzz.fizz();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-
-        Thread threadB = new Thread(() -> {
-            try {
-                fizzBuzz.buzz();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-
-        Thread threadC = new Thread(() -> {
-            try {
-                fizzBuzz.fizzbuzz();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
-
-        Thread threadD = new Thread(() -> {
-            try {
-                fizzBuzz.number();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        });
+        Thread threadA = new Thread(fizzBuzz::fizz);
+        Thread threadB = new Thread(fizzBuzz::buzz);
+        Thread threadC = new Thread(fizzBuzz::fizzbuzz);
+        Thread threadD = new Thread(fizzBuzz::number);
 
         threadA.start();
         threadB.start();
         threadC.start();
         threadD.start();
 
-        threadA.join();
-        threadB.join();
-        threadC.join();
-        threadD.join();
+        try {
+            threadA.join();
+            threadB.join();
+            threadC.join();
+            threadD.join();
+        }
+        catch (InterruptedException e)
+        {
+            Thread.currentThread().interrupt();
+        }
     }
 }
