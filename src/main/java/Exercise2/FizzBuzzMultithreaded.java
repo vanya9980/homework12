@@ -3,7 +3,6 @@ package Exercise2;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
-
 public class FizzBuzzMultithreaded {
     private final int n;
     private final AtomicInteger current;
@@ -24,6 +23,7 @@ public class FizzBuzzMultithreaded {
                 if (current.get() % 3 == 0 && current.get() % 5 != 0) {
                     queue.put("fizz");
                     current.incrementAndGet();
+                    print();
                 }
             }
         }
@@ -38,6 +38,7 @@ public class FizzBuzzMultithreaded {
                 if (current.get() % 5 == 0 && current.get() % 3 != 0) {
                     queue.put("buzz");
                     current.incrementAndGet();
+                    print();
                 }
             }
         }
@@ -52,6 +53,7 @@ public class FizzBuzzMultithreaded {
                 if (current.get() % 3 == 0 && current.get() % 5 == 0) {
                     queue.put("fizzbuzz");
                     current.incrementAndGet();
+                    print();
                 }
             }
         }
@@ -61,29 +63,24 @@ public class FizzBuzzMultithreaded {
         while (true) {
             synchronized (this) {
                 if (current.get() > n) {
-                    queue.put("stop"); // Signals the end of processing
                     break;
                 }
                 if (current.get() % 3 != 0 && current.get() % 5 != 0) {
                     queue.put(String.valueOf(current));
                     current.incrementAndGet();
+                    print();
                 }
             }
         }
     }
 
-    public void print() throws InterruptedException {
-        while (true) {
-            String value = queue.take();
-            if (value.equals("stop")) {
-                break;
-            }
-            System.out.print(value + ", ");
-        }
+    private void print() throws InterruptedException {
+        String value = queue.take();
+        System.out.print(value + (current.get() > n ? "" : ", "));
     }
 
     public static void main(String[] args) throws InterruptedException {
-        FizzBuzzMultithreaded fizzBuzz = new FizzBuzzMultithreaded(15);
+        FizzBuzzMultithreaded fizzBuzz = new FizzBuzzMultithreaded(200000);
 
         Thread threadA = new Thread(() -> {
             try {
@@ -112,7 +109,6 @@ public class FizzBuzzMultithreaded {
         Thread threadD = new Thread(() -> {
             try {
                 fizzBuzz.number();
-                fizzBuzz.print();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
